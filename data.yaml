@@ -1,0 +1,9 @@
+names:
+  '0': Thyroid-cartilage
+  '1': Strap-muscle
+  '2': Tracheal-ring
+  '3': Thyroid-gland
+path: ''
+test: test
+train: train
+val: val
