@@ -8,7 +8,8 @@ This repository contains the code and results for training the YOLOv9 object det
   - `PR curve 7 fold.png`: Precision-Recall curve for the 7 folds.
   - `PR curve class 2.png`: Precision-Recall curve for class 2.
   - `PR curve class 4.png`: Precision-Recall curve for class 4.
-  - `PR curve class1.png`: Precision-Recall curve for class 1.
+  - `PR curve class 1.png`: Precision-Recall curve for class 1.
+  - `PR curve class 0.png`: Precision-Recall curve for class 0.
   - `PR for 7fold and 4classes.png`: Combined Precision-Recall curve for 7 folds and 4 classes.
   - `PR for each class across 7 folds.png`: Precision-Recall curve for each class across 7 folds.
   - `val_box_loss.png`: Validation box loss curve.
