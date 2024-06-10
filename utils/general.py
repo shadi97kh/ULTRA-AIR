@@ -1,8 +1,3 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
-"""
-General utils
-"""
-
 import contextlib
 import glob
 import inspect
@@ -17,6 +12,10 @@ import signal
 import sys
 import time
 import urllib
+import numpy as np
+import torch
+import time
+import torchvision
 from copy import deepcopy
 from datetime import datetime
 from itertools import repeat
@@ -41,7 +40,7 @@ from utils.downloads import gsutil_getsize
 from utils.metrics import box_iou, fitness
 
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[1]  # YOLOv5 root directory
+ROOT = FILE.parents[1]  # YOLO root directory
 RANK = int(os.getenv('RANK', -1))
 
 # Settings
@@ -161,7 +160,7 @@ CONFIG_DIR = user_config_dir()  # Ultralytics settings dir
 
 
 class Profile(contextlib.ContextDecorator):
-    # YOLOv5 Profile class. Usage: @Profile() decorator or 'with Profile():' context manager
+    # YOLO Profile class. Usage: @Profile() decorator or 'with Profile():' context manager
     def __init__(self, t=0.0):
         self.t = t
         self.cuda = torch.cuda.is_available()
@@ -181,7 +180,7 @@ class Profile(contextlib.ContextDecorator):
 
 
 class Timeout(contextlib.ContextDecorator):
-    # YOLOv5 Timeout class. Usage: @Timeout(seconds) decorator or 'with Timeout(seconds):' context manager
+    # YOLO Timeout class. Usage: @Timeout(seconds) decorator or 'with Timeout(seconds):' context manager
     def __init__(self, seconds, *, timeout_msg='', suppress_timeout_errors=True):
         self.seconds = int(seconds)
         self.timeout_message = timeout_msg
@@ -317,8 +316,8 @@ def git_describe(path=ROOT):  # path must be a directory
 
 @TryExcept()
 @WorkingDirectory(ROOT)
-def check_git_status(repo='ultralytics/yolov5', branch='master'):
-    # YOLOv5 status check, recommend 'git pull' if code is out of date
+def check_git_status(repo='WongKinYiu/yolov9', branch='main'):
+    # YOLO status check, recommend 'git pull' if code is out of date
     url = f'https://github.com/{repo}'
     msg = f', for updates see {url}'
     s = colorstr('github: ')  # string
@@ -337,7 +336,7 @@ def check_git_status(repo='ultralytics/yolov5', branch='master'):
     n = int(check_output(f'git rev-list {local_branch}..{remote}/{branch} --count', shell=True))  # commits behind
     if n > 0:
         pull = 'git pull' if remote == 'origin' else f'git pull {remote} {branch}'
-        s += f"⚠️ YOLOv5 is out of date by {n} commit{'s' * (n > 1)}. Use `{pull}` or `git clone {url}` to update."
+        s += f"⚠️ YOLO is out of date by {n} commit{'s' * (n > 1)}. Use `{pull}` or `git clone {url}` to update."
     else:
         s += f'up to date with {url} ✅'
     LOGGER.info(s)
@@ -345,12 +344,12 @@ def check_git_status(repo='ultralytics/yolov5', branch='master'):
 
 @WorkingDirectory(ROOT)
 def check_git_info(path='.'):
-    # YOLOv5 git info check, return {remote, branch, commit}
+    # YOLO git info check, return {remote, branch, commit}
     check_requirements('gitpython')
     import git
     try:
         repo = git.Repo(path)
-        remote = repo.remotes.origin.url.replace('.git', '')  # i.e. 'https://github.com/ultralytics/yolov5'
+        remote = repo.remotes.origin.url.replace('.git', '')  # i.e. 'https://github.com/WongKinYiu/yolov9'
         commit = repo.head.commit.hexsha  # i.e. '3134699c73af83aac2a481435550b968d5792c0d'
         try:
             branch = repo.active_branch.name  # i.e. 'main'
@@ -370,7 +369,7 @@ def check_version(current='0.0.0', minimum='0.0.0', name='version ', pinned=Fals
     # Check version vs. required version
     current, minimum = (pkg.parse_version(x) for x in (current, minimum))
     result = (current == minimum) if pinned else (current >= minimum)  # bool
-    s = f'WARNING ⚠️ {name}{minimum} is required by YOLOv5, but {name}{current} is currently installed'  # string
+    s = f'WARNING ⚠️ {name}{minimum} is required by YOLO, but {name}{current} is currently installed'  # string
     if hard:
         assert result, emojis(s)  # assert min requirements met
     if verbose and not result:
@@ -380,7 +379,7 @@ def check_version(current='0.0.0', minimum='0.0.0', name='version ', pinned=Fals
 
 @TryExcept()
 def check_requirements(requirements=ROOT / 'requirements.txt', exclude=(), install=True, cmds=''):
-    # Check installed dependencies meet YOLOv5 requirements (pass *.txt file or list of packages or single package str)
+    # Check installed dependencies meet YOLO requirements (pass *.txt file or list of packages or single package str)
     prefix = colorstr('red', 'bold', 'requirements:')
     check_python()  # check python version
     if isinstance(requirements, Path):  # requirements.txt file
@@ -401,7 +400,7 @@ def check_requirements(requirements=ROOT / 'requirements.txt', exclude=(), insta
             n += 1
 
     if s and install and AUTOINSTALL:  # check environment variable
-        LOGGER.info(f"{prefix} YOLOv5 requirement{'s' * (n > 1)} {s}not found, attempting AutoUpdate...")
+        LOGGER.info(f"{prefix} YOLO requirement{'s' * (n > 1)} {s}not found, attempting AutoUpdate...")
         try:
             # assert check_online(), "AutoUpdate skipped (offline)"
             LOGGER.info(check_output(f'pip install {s} {cmds}', shell=True).decode())
@@ -441,7 +440,7 @@ def check_imshow(warn=False):
         return False
 
 
-def check_suffix(file='yolov5s.pt', suffix=('.pt',), msg=''):
+def check_suffix(file='yolo.pt', suffix=('.pt',), msg=''):
     # Check file(s) for acceptable suffix
     if file and suffix:
         if isinstance(suffix, str):
@@ -580,7 +579,7 @@ def check_amp(model):
     f = ROOT / 'data' / 'images' / 'bus.jpg'  # image to check
     im = f if f.exists() else 'https://ultralytics.com/images/bus.jpg' if check_online() else np.ones((640, 640, 3))
     try:
-        assert amp_allclose(deepcopy(model), im) or amp_allclose(DetectMultiBackend('yolov5n.pt', device), im)
+        #assert amp_allclose(deepcopy(model), im) or amp_allclose(DetectMultiBackend('yolo.pt', device), im)
         LOGGER.info(f'{prefix}checks passed ✅')
         return True
     except Exception:
@@ -683,6 +682,12 @@ def one_cycle(y1=0.0, y2=1.0, steps=100):
     return lambda x: ((1 - math.cos(x * math.pi / steps)) / 2) * (y2 - y1) + y1
 
 
+def one_flat_cycle(y1=0.0, y2=1.0, steps=100):
+    # lambda function for sinusoidal ramp from y1 to y2 https://arxiv.org/pdf/1812.01187.pdf
+    #return lambda x: ((1 - math.cos(x * math.pi / steps)) / 2) * (y2 - y1) + y1
+    return lambda x: ((1 - math.cos((x - (steps // 2)) * math.pi / (steps // 2))) / 2) * (y2 - y1) + y1 if (x > (steps // 2)) else y1
+
+
 def colorstr(*input):
     # Colors a string https://en.wikipedia.org/wiki/ANSI_escape_code, i.e.  colorstr('blue', 'hello world')
     *args, string = input if len(input) > 1 else ('blue', 'bold', input[0])  # color arguments, string
@@ -750,30 +755,30 @@ def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
 def xyxy2xywh(x):
     # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] where xy1=top-left, xy2=bottom-right
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
-    y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
-    y[:, 2] = x[:, 2] - x[:, 0]  # width
-    y[:, 3] = x[:, 3] - x[:, 1]  # height
+    y[..., 0] = (x[..., 0] + x[..., 2]) / 2  # x center
+    y[..., 1] = (x[..., 1] + x[..., 3]) / 2  # y center
+    y[..., 2] = x[..., 2] - x[..., 0]  # width
+    y[..., 3] = x[..., 3] - x[..., 1]  # height
     return y
 
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[:, 0] = x[:, 0] - x[:, 2] / 2  # top left x
-    y[:, 1] = x[:, 1] - x[:, 3] / 2  # top left y
-    y[:, 2] = x[:, 0] + x[:, 2] / 2  # bottom right x
-    y[:, 3] = x[:, 1] + x[:, 3] / 2  # bottom right y
+    y[..., 0] = x[..., 0] - x[..., 2] / 2  # top left x
+    y[..., 1] = x[..., 1] - x[..., 3] / 2  # top left y
+    y[..., 2] = x[..., 0] + x[..., 2] / 2  # bottom right x
+    y[..., 3] = x[..., 1] + x[..., 3] / 2  # bottom right y
     return y
 
 
 def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
     # Convert nx4 boxes from [x, y, w, h] normalized to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[:, 0] = w * (x[:, 0] - x[:, 2] / 2) + padw  # top left x
-    y[:, 1] = h * (x[:, 1] - x[:, 3] / 2) + padh  # top left y
-    y[:, 2] = w * (x[:, 0] + x[:, 2] / 2) + padw  # bottom right x
-    y[:, 3] = h * (x[:, 1] + x[:, 3] / 2) + padh  # bottom right y
+    y[..., 0] = w * (x[..., 0] - x[..., 2] / 2) + padw  # top left x
+    y[..., 1] = h * (x[..., 1] - x[..., 3] / 2) + padh  # top left y
+    y[..., 2] = w * (x[..., 0] + x[..., 2] / 2) + padw  # bottom right x
+    y[..., 3] = h * (x[..., 1] + x[..., 3] / 2) + padh  # bottom right y
     return y
 
 
@@ -782,18 +787,18 @@ def xyxy2xywhn(x, w=640, h=640, clip=False, eps=0.0):
     if clip:
         clip_boxes(x, (h - eps, w - eps))  # warning: inplace clip
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[:, 0] = ((x[:, 0] + x[:, 2]) / 2) / w  # x center
-    y[:, 1] = ((x[:, 1] + x[:, 3]) / 2) / h  # y center
-    y[:, 2] = (x[:, 2] - x[:, 0]) / w  # width
-    y[:, 3] = (x[:, 3] - x[:, 1]) / h  # height
+    y[..., 0] = ((x[..., 0] + x[..., 2]) / 2) / w  # x center
+    y[..., 1] = ((x[..., 1] + x[..., 3]) / 2) / h  # y center
+    y[..., 2] = (x[..., 2] - x[..., 0]) / w  # width
+    y[..., 3] = (x[..., 3] - x[..., 1]) / h  # height
     return y
 
 
 def xyn2xy(x, w=640, h=640, padw=0, padh=0):
     # Convert normalized segments into pixel segments, shape (n,2)
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[:, 0] = w * x[:, 0] + padw  # top left x
-    y[:, 1] = h * x[:, 1] + padh  # top left y
+    y[..., 0] = w * x[..., 0] + padw  # top left x
+    y[..., 1] = h * x[..., 1] + padh  # top left y
     return y
 
 
@@ -895,10 +900,10 @@ def non_max_suppression(
     """Non-Maximum Suppression (NMS) on inference results to reject overlapping detections
 
     Returns:
-         list of detections, on (n,6) tensor per image [xyxy, conf, cls]
+         list of detections, on (n,6) tensor per image [xyxy, conf, cls], and class probabilities
     """
 
-    if isinstance(prediction, (list, tuple)):  # YOLOv5 model in validation model, output = (inference_out, loss_out)
+    if isinstance(prediction, (list, tuple)):  # YOLO model in validation mode, output = (inference_out, loss_out)
         prediction = prediction[0]  # select only inference output
 
     device = prediction.device
@@ -906,58 +911,49 @@ def non_max_suppression(
     if mps:  # MPS not fully supported yet, convert tensors to CPU before NMS
         prediction = prediction.cpu()
     bs = prediction.shape[0]  # batch size
-    nc = prediction.shape[2] - nm - 5  # number of classes
-    xc = prediction[..., 4] > conf_thres  # candidates
+    nc = prediction.shape[1] - nm - 4  # number of classes
+    mi = 4 + nc  # mask start index
+    xc = prediction[:, 4:mi].amax(1) > conf_thres  # candidates
 
     # Checks
     assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
     assert 0 <= iou_thres <= 1, f'Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0'
 
     # Settings
-    # min_wh = 2  # (pixels) minimum box width and height
     max_wh = 7680  # (pixels) maximum box width and height
     max_nms = 30000  # maximum number of boxes into torchvision.ops.nms()
-    time_limit = 0.5 + 0.05 * bs  # seconds to quit after
+    time_limit = 2.5 + 0.05 * bs  # seconds to quit after
     redundant = True  # require redundant detections
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
     merge = False  # use merge-NMS
 
     t = time.time()
-    mi = 5 + nc  # mask start index
-    probs = [torch.zeros((0, nc), device=prediction.device)] * bs
     output = [torch.zeros((0, 6 + nm), device=prediction.device)] * bs
+    probs = [torch.zeros((0, nc), device=prediction.device)] * bs  # initialize probability list
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
-        # x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
-        x = x[xc[xi]]  # confidence
+        x = x.T[xc[xi]]  # confidence
 
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]):
             lb = labels[xi]
             v = torch.zeros((len(lb), nc + nm + 5), device=x.device)
             v[:, :4] = lb[:, 1:5]  # box
-            v[:, 4] = 1.0  # conf
-            v[range(len(lb)), lb[:, 0].long() + 5] = 1.0  # cls
+            v[range(len(lb)), lb[:, 0].long() + 4] = 1.0  # cls
             x = torch.cat((x, v), 0)
 
         # If none remain process next image
         if not x.shape[0]:
             continue
 
-        # Compute conf
-        probs_0 = x[:, 5:].clone().detach()  # storing probabilities
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
-
-        # Box/Mask
-        box = xywh2xyxy(x[:, :4])  # center_x, center_y, width, height) to (x1, y1, x2, y2)
-        mask = x[:, mi:]  # zero columns if no masks
-
         # Detections matrix nx6 (xyxy, conf, cls)
+        box, cls, mask = x.split((4, nc, nm), 1)
+        box = xywh2xyxy(box)  # center_x, center_y, width, height) to (x1, y1, x2, y2)
         if multi_label:
-            i, j = (x[:, 5:mi] > conf_thres).nonzero(as_tuple=False).T
-            x = torch.cat((box[i], x[i, 5 + j, None], j[:, None].float(), mask[i]), 1)
+            i, j = (cls > conf_thres).nonzero(as_tuple=False).T
+            x = torch.cat((box[i], x[i, 4 + j, None], j[:, None].float(), mask[i]), 1)
         else:  # best class only
-            conf, j = x[:, 5:mi].max(1, keepdim=True)
+            conf, j = cls.max(1, keepdim=True)
             x = torch.cat((box, conf, j.float(), mask), 1)[conf.view(-1) > conf_thres]
 
         # Filter by class
@@ -973,11 +969,12 @@ def non_max_suppression(
         if not n:  # no boxes
             continue
         elif n > max_nms:  # excess boxes
-            si = x[:, 4].argsort(descending=True)[:max_nms]  # sort by confidence
+            x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence
         else:
-            si = x[:, 4].argsort(descending=True)  # sort by confidence
-        x = x[si]
-        probs_0 = probs_0[si]
+            x = x[x[:, 4].argsort(descending=True)]  # sort by confidence
+
+        # Store probabilities
+        probs[xi] = cls[x[:, 4].argsort(descending=True)]  # store probabilities
 
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
@@ -986,7 +983,6 @@ def non_max_suppression(
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
-            # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
             iou = box_iou(boxes[i], boxes) > iou_thres  # iou matrix
             weights = iou * scores[None]  # box weights
             x[i, :4] = torch.mm(weights, x[:, :4]).float() / weights.sum(1, keepdim=True)  # merged boxes
@@ -994,8 +990,6 @@ def non_max_suppression(
                 i = i[iou.sum(1) > 1]  # require redundancy
 
         output[xi] = x[i]
-        probs[xi] = probs_0[i].cpu().numpy()
-
         if mps:
             output[xi] = output[xi].to(device)
         if (time.time() - t) > time_limit:
@@ -1003,19 +997,32 @@ def non_max_suppression(
             break  # time limit exceeded
 
     return output, probs
-
+    
 
 def calculate_uncertainty(prob):
-    sds = []
+    """
+    Calculate uncertainty based on the class probabilities.
+
+    Args:
+        prob (list of torch.Tensor): List of tensors containing class probabilities.
+
+    Returns:
+        list of uncertainties for each image.
+    """
+    uncertainties = []
     for p_bbox in prob:
-        mean = 0
-        var = 0
-        for i in range(len(p_bbox)):
-            mean += (i * p_bbox[i])
-        for i in range(len(p_bbox)):
-            var += ((i - mean) * (i - mean)) * p_bbox[i]
-        sds.append(np.sqrt(var))
-    return sds
+        sds = []
+        for p in p_bbox:
+            p = p.cpu().numpy()
+            mean = 0
+            var = 0
+            for i in range(len(p)):
+                mean += (i * p[i])
+            for i in range(len(p)):
+                var += ((i - mean) * (i - mean)) * p[i]
+            sds.append(np.sqrt(var))
+        uncertainties.append(sds)
+    return uncertainties
 
 
 def strip_optimizer(f='best.pt', s=''):  # from utils.general import *; strip_optimizer()
@@ -1059,7 +1066,7 @@ def print_mutation(keys, results, hyp, save_dir, bucket, prefix=colorstr('evolve
         data = data.rename(columns=lambda x: x.strip())  # strip keys
         i = np.argmax(fitness(data.values[:, :4]))  #
         generations = len(data)
-        f.write('# YOLOv5 Hyperparameter Evolution Results\n' + f'# Best generation: {i}\n' +
+        f.write('# YOLO Hyperparameter Evolution Results\n' + f'# Best generation: {i}\n' +
                 f'# Last generation: {generations - 1}\n' + '# ' + ', '.join(f'{x.strip():>20s}' for x in keys[:7]) +
                 '\n' + '# ' + ', '.join(f'{x:>20.5g}' for x in data.values[i, :7]) + '\n\n')
         yaml.safe_dump(data.loc[i][7:].to_dict(), f, sort_keys=False)
