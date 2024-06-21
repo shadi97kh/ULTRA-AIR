@@ -131,21 +131,22 @@ def run(
                 # Write results and store uncertainties
                 with open(f"{save_dir}/{p.stem}_uncertainties.txt", 'w') as f:
                     for obj, (*xyxy, conf, cls) in enumerate(reversed(det)):
-                        if save_txt:  # Write to file
-                            xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                            line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                            with open(f'{txt_path}.txt', 'a') as f_txt:
-                                f_txt.write(('%g ' * len(line)).rstrip() % line + '\n')
+                      if save_txt:  # Write to file
+                          xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                          line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                          class_name = names[int(cls)]  # get class name
+                          with open(f'{txt_path}_class_{class_name}.txt', 'a') as f_txt:
+                              f_txt.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-                        if save_img or save_crop or view_img:  # Add bbox to image
-                            c = int(cls)  # integer class
-                            label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f} {ucs[i][obj]:.2f}')
-                            annotator.box_label(xyxy, label, color=colors(c, True))
-                        if save_crop:
-                            save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
-                        
-                        # Save uncertainties
-                        f.write(f'Object {obj}: Confidence {conf:.2f}, Uncertainty {ucs[i][obj]:.2f}\n')
+                      if save_img or save_crop or view_img:  # Add bbox to image
+                          c = int(cls)  # integer class
+                          label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f} {ucs[i][obj]:.2f}')
+                          annotator.box_label(xyxy, label, color=colors(c, True))
+                      if save_crop:
+                          save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
+        
+                      # Save uncertainties
+                      f.write(f'Object {obj}: Class {names[int(cls)]}, Confidence {conf:.2f}, Uncertainty {ucs[i][obj]:.2f}\n')
 
             # Stream results
             im0 = annotator.result()
