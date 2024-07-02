@@ -113,8 +113,8 @@ def run(
                 p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
-            save_path = str(save_dir / p.name)  # im.jpg
-            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
+            save_path = str(save_dir / p.stem) + '.png'  # save path with .png extension
+            txt_path = str(save_dir / 'labels' / p.stem)  # txt path without extension
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
@@ -129,24 +129,23 @@ def run(
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Write results and store uncertainties
-                with open(f"{save_dir}/{p.stem}_uncertainties.txt", 'w') as f:
+                with open(f"{save_dir}/{p.stem}.txt", 'w') as f:
                     for obj, (*xyxy, conf, cls) in enumerate(reversed(det)):
-                      if save_txt:  # Write to file
-                          xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                          line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                          class_name = names[int(cls)]  # get class name
-                          with open(f'{txt_path}_class_{class_name}.txt', 'a') as f_txt:
-                              f_txt.write(('%g ' * len(line)).rstrip() % line + '\n')
+                        if save_txt:  # Write to file
+                            xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                            line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                            with open(f'{txt_path}.txt', 'a') as f_txt:
+                                f_txt.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-                      if save_img or save_crop or view_img:  # Add bbox to image
-                          c = int(cls)  # integer class
-                          label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f} {ucs[i][obj]:.2f}')
-                          annotator.box_label(xyxy, label, color=colors(c, True))
-                      if save_crop:
-                          save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
+                        if save_img or save_crop or view_img:  # Add bbox to image
+                            c = int(cls)  # integer class
+                            label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f} {ucs[i][obj]:.2f}')
+                            annotator.box_label(xyxy, label, color=colors(c, True))
+                        if save_crop:
+                            save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
         
-                      # Save uncertainties
-                      f.write(f'Object {obj}: Class {names[int(cls)]}, Confidence {conf:.2f}, Uncertainty {ucs[i][obj]:.2f}\n')
+                        # Save uncertainties
+                        f.write(f'Object {obj}: Class {names[int(cls)]}, Confidence {conf:.2f}, Uncertainty {ucs[i][obj]:.2f}\n')
 
             # Stream results
             im0 = annotator.result()
@@ -204,7 +203,7 @@ def parse_opt():
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
     parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
-    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
+    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--visualize', action='store_true', help='visualize features')
