@@ -17,7 +17,7 @@ def run_detection(image_path, model_path, output_path, imgsz):
         '--weights', model_path,
         '--source', image_path,
         '--imgsz', str(imgsz),
-        '--save-txt',  # Save results to text files
+        '--save-txt', 
         '--project', output_path,
         '--name', 'detections',
         '--exist-ok'
