@@ -37,10 +37,8 @@ Models are trained and evaluated with **7-fold subject-wise cross-validation** (
 - [utils/](utils/) — Shared utilities, including the `calculate_uncertainty` helper used by `detect.py`.
 - [datasets/](datasets/) — `train` / `val` / `test` splits used by the pipeline.
 - [Final_Results/](Final_Results/) — Per-fold results (`v0.0.2.20_fold_Sub011` … `Sub017`), confusion matrices, PR curves, and certainty/uncertainty scatter plots reported in the paper.
-- [fold_generator.ipynb](fold_generator.ipynb) — Generates the 7 subject-wise folds.
-- [yolo_pipeline.ipynb](yolo_pipeline.ipynb) — End-to-end pipeline notebook.
-- [train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb](train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb) — Combined 7-fold training notebook.
-- [tutorial.ipynb](tutorial.ipynb) — Walkthrough.
+- [train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb](train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb) — End-to-end notebook: parses the raw `Dataset/{Subject}/Trachea/{position}/Reviewed/` files, generates the 7 subject-wise folds, trains YOLOv9 per fold, and produces the per-class PR curves.
+- [tutorial.ipynb](tutorial.ipynb) — Upstream YOLOv5 walkthrough (kept for reference).
 
 ## Installation
 
@@ -54,13 +52,13 @@ A CUDA-capable GPU is recommended for training. PyTorch ≥ 1.7 is required (see
 
 ## Usage
 
-### 1. Generate the 7 folds
+### 1. Run the 7-fold experiment (recommended)
 
-Open [fold_generator.ipynb](fold_generator.ipynb) and run it to produce subject-wise splits under `datasets/`.
+The fastest path is the end-to-end notebook [train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb](train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb): it generates the subject-wise folds from the raw `Dataset/{Subject}/Trachea/{position}/Reviewed/` files, trains YOLOv9 on each fold, and writes per-class PR curves and metrics under `results/`.
 
-### 2. Train
+### 2. Train a single fold from the CLI
 
-Train a single fold (replace `<fold>` and adjust hyperparameters as needed):
+If the splits already exist under `datasets/` (the notebook produces them), train a single fold with:
 
 ```bash
 python train.py \
