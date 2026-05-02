@@ -1,82 +1,123 @@
-# YOLOv9 Object Detection on Neck Ultrasound - 7 Fold Training
+# ULTRA-AIR: Ultrasound Landmark Tracking for Real-Time Anatomical Airway Identification and Reliability Check
 
-This repository contains the code and results for training the YOLOv9 object detection model on neck ultrasound images using a 7-fold cross-validation approach. The project is a combination of the `fold generator` and `pipeline` folders, integrating their functionalities to achieve robust training and evaluation.
+This repository contains the official code and experimental results for the paper:
 
-## Files and Folders
+> Z. Khodagholi, J. Sun, N. Awad, A. Vankayalapati, G. R. Dion and L. J. Brattain,
+> **"ULTRA-AIR: Ultrasound Landmark Tracking for Real-Time Anatomical Airway Identification and Reliability Check,"**
+> *2024 IEEE 20th International Conference on Body Sensor Networks (BSN)*, Chicago, IL, USA, 2024, pp. 1-4.
+> doi: [10.1109/BSN63547.2024.10780557](https://doi.org/10.1109/BSN63547.2024.10780557)
 
-- `Graphs/`
-  - `PR curve 7 fold.png`: Precision-Recall curve for the 7 folds.
-  - `PR curve class 2.png`: Precision-Recall curve for class 2.
-  - `PR curve class 4.png`: Precision-Recall curve for class 4.
-  - `PR curve class 1.png`: Precision-Recall curve for class 1.
-  - `PR curve class 0.png`: Precision-Recall curve for class 0.
-  - `PR for 7fold and 4classes.png`: Combined Precision-Recall curve for 7 folds and 4 classes.
-  - `PR for each class across 7 folds.png`: Precision-Recall curve for each class across 7 folds.
-  - `val_box_loss.png`: Validation box loss curve.
-- `README.md`: This readme file.
-- `results for 7 fold/`: Folder containing the results for each of the 7 folds.
-- `train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb`: Jupyter notebook used for training the YOLOv9 model.
+ULTRA-AIR is a YOLOv9-based pipeline for real-time identification of airway landmarks in neck ultrasound, with an epistemic-uncertainty reliability check based on a Gaussian Mixture Model. It is designed to support safer percutaneous tracheostomy and other airway-management procedures by flagging predictions the model is not confident about.
 
-## Project Overview
+**Keywords:** Adaptive Optimization, Airway Management, Epistemic Uncertainty, Gaussian Mixture Model, Neck Ultrasound, Percutaneous Tracheostomy, Trustworthy AI, YOLOv9.
 
-This project aims to develop an object detection model to identify various structures in neck ultrasound images. By using YOLOv9, a state-of-the-art object detection algorithm, the model achieves high accuracy and efficiency.
+## Overview
 
-### Key Components
+The pipeline detects four anatomical landmarks in neck ultrasound images (see [data.yaml](data.yaml)):
 
-- **Fold Generator**: This component generates the 7-fold cross-validation splits to ensure robust model evaluation.
-- **Pipeline**: This component handles the data preprocessing, model training, and evaluation pipeline.
+| Class ID | Landmark          |
+| -------- | ----------------- |
+| 0        | Thyroid-cartilage |
+| 1        | Strap-muscle      |
+| 2        | Tracheal-ring     |
+| 3        | Thyroid-gland     |
 
-### Precision-Recall Curves
+Models are trained and evaluated with **7-fold subject-wise cross-validation** (one subject held out per fold) and the per-prediction epistemic uncertainty is post-processed with a Gaussian Mixture Model to derive a reliability check on each detection.
 
-The precision-recall curves for each class and each fold are saved in the `Graphs` folder. These graphs provide insight into the performance of the model across different classes and folds.
+## Repository Layout
 
-### Metrics
+- [train.py](train.py) — YOLOv9 training entry point.
+- [val.py](val.py) — Validation / evaluation script.
+- [detect.py](detect.py) — Inference script; also writes per-detection confidence and epistemic-uncertainty values.
+- [plot_uncertainty.py](plot_uncertainty.py) — Aggregates `*_uncertainties.txt` files produced by `detect.py` and plots confidence vs. uncertainty (with optional GMM threshold line).
+- [export.py](export.py) — Model export utilities (ONNX, TorchScript, etc.).
+- [benchmarks.py](benchmarks.py) — Speed/accuracy benchmarks.
+- [data.yaml](data.yaml) — Dataset configuration with the four airway landmark classes.
+- [models/](models/) — YOLOv9 model definitions and configs.
+- [utils/](utils/) — Shared utilities, including the `calculate_uncertainty` helper used by `detect.py`.
+- [datasets/](datasets/) — `train` / `val` / `test` splits used by the pipeline.
+- [Final_Results/](Final_Results/) — Per-fold results (`v0.0.2.20_fold_Sub011` … `Sub017`), confusion matrices, PR curves, and certainty/uncertainty scatter plots reported in the paper.
+- [fold_generator.ipynb](fold_generator.ipynb) — Generates the 7 subject-wise folds.
+- [yolo_pipeline.ipynb](yolo_pipeline.ipynb) — End-to-end pipeline notebook.
+- [train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb](train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb) — Combined 7-fold training notebook.
+- [tutorial.ipynb](tutorial.ipynb) — Walkthrough.
 
-For each fold, the precision, recall, and F1-score for each class are calculated and stored. The average precision, recall, and F1-score across all folds and classes are also provided.
+## Installation
 
-## Instructions
+```bash
+git clone https://github.com/shadi97kh/UltraSound-Project.git
+cd UltraSound-Project
+pip install -r requirements.txt
+```
 
-To run the training and evaluation scripts, follow these steps:
+A CUDA-capable GPU is recommended for training. PyTorch ≥ 1.7 is required (see [requirements.txt](requirements.txt)).
 
-1. **Clone this repository:**
-    ```bash
-    git clone https://github.com/shadi97kh/UltraSound-Project.git
-    cd UltraSound-Project
-    ```
+## Usage
 
-2. **Ensure you have the required dependencies installed.** You can use the `requirements.txt` file to install them:
-    ```bash
-    pip install -r requirements.txt
-    ```
+### 1. Generate the 7 folds
 
-3. **Open the Jupyter notebook** `train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb` and run all cells to start the training process.
+Open [fold_generator.ipynb](fold_generator.ipynb) and run it to produce subject-wise splits under `datasets/`.
 
-### Running the Training Pipeline
+### 2. Train
 
-The provided Jupyter notebook contains all the necessary code to preprocess the data, generate the 7-fold splits, train the YOLOv9 model, and evaluate its performance. The key steps include:
+Train a single fold (replace `<fold>` and adjust hyperparameters as needed):
 
-1. **Data Loading and Preprocessing**: Load the neck ultrasound images and corresponding annotations.
-2. **Fold Generation**: Generate 7-fold cross-validation splits using the fold generator.
-3. **Model Training**: Train the YOLOv9 model on each fold.
-4. **Evaluation**: Calculate precision, recall, and F1-score for each class and fold, and plot the precision-recall curves.
+```bash
+python train.py \
+    --data data.yaml \
+    --cfg models/detect/yolov9-c.yaml \
+    --weights '' \
+    --img 640 \
+    --epochs 100 \
+    --name fold_<fold>
+```
 
-## Syncing Changes with GitHub
+To reproduce the full 7-fold experiment from the paper, run [train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb](train_yolov9_object_detection_on_neck_ultrasound_7fold.ipynb).
 
-To sync changes with GitHub, use the following commands:
+### 3. Validate
 
-1. **Commit your changes:**
-    ```bash
-    git add .
-    git commit -m "Your commit message"
-    ```
+```bash
+python val.py --data data.yaml --weights runs/train/fold_<fold>/weights/best.pt --img 640
+```
 
-2. **Pull the latest changes:**
-    ```bash
-    git pull --rebase
-    ```
+### 4. Inference with reliability check
 
-3. **Push your changes:**
-    ```bash
-    git push origin main
-    ```
+`detect.py` writes per-detection confidence and epistemic uncertainty alongside the standard YOLO output:
 
+```bash
+python detect.py \
+    --weights runs/train/fold_<fold>/weights/best.pt \
+    --source path/to/ultrasound/images \
+    --data data.yaml \
+    --save-txt --save-conf
+```
+
+Then aggregate uncertainty across a run and plot confidence vs. uncertainty (optionally with a GMM-derived threshold):
+
+```bash
+python plot_uncertainty.py --dir runs/detect/exp --threshold 0.15
+```
+
+## Results
+
+Per-fold and aggregate results referenced in the paper — including the precision-recall curves, confusion matrices, and confidence/uncertainty scatter plots — are stored in [Final_Results/](Final_Results/).
+
+## Citation
+
+If you use this code or build on this work, please cite:
+
+```bibtex
+@INPROCEEDINGS{10780557,
+  author    = {Khodagholi, Z. and Sun, J. and Awad, N. and Vankayalapati, A. and Dion, G. R. and Brattain, L. J.},
+  booktitle = {2024 IEEE 20th International Conference on Body Sensor Networks (BSN)},
+  title     = {ULTRA-AIR: Ultrasound Landmark Tracking for Real-Time Anatomical Airway Identification and Reliability Check},
+  year      = {2024},
+  pages     = {1--4},
+  address   = {Chicago, IL, USA},
+  doi       = {10.1109/BSN63547.2024.10780557}
+}
+```
+
+## License
+
+Released under the [MIT License](LICENSE). The detection code builds on the YOLOv9 / YOLOv5 codebase, which is distributed under its own license; please consult upstream for those terms.
